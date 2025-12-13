@@ -108,6 +108,7 @@ class Settings(BaseSettings):
         "base",
         "defi",
         "ai_agents", "ai", "agents",
+        "aptos",
         "rwa",
         "liquidity",
         "macro", "macro_events",
@@ -119,6 +120,15 @@ class Settings(BaseSettings):
         "launchpad",
         "virtuals",
         "trends",
+        "ondo",
+        "perp_dexs",
+        "crypto",
+        "dats",
+        "hyperliquid",
+        "machine_learning",
+        "ripple",
+        "tech",
+        "whale_movement",
         "other"
     ]
 

@@ -96,7 +96,7 @@ def save_category_data(category: str, data: Dict[str, Any]):
                             k: v for k, v in item.items()
                             if k not in [
                                 'oxmeta_id', 'source', 'category', 'sources',
-                                'title', 'short_context', 'long_context', 'text',
+                                'title', 'text',
                                 'sentiment', 'sentiment_value', 'feed_categories',
                                 'tokens', 'author', 'timestamp', 'normalized_date'
                             ]
@@ -108,8 +108,6 @@ def save_category_data(category: str, data: Dict[str, Any]):
                             category=item.get("category"),
                             sources=item.get("sources", []),
                             title=item.get("title", ""),
-                            short_context=item.get("short_context"),
-                            long_context=item.get("long_context"),
                             text=item.get("text"),
                             sentiment=item.get("sentiment"),
                             sentiment_value=item.get("sentiment_value"),

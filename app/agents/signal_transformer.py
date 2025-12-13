@@ -12,7 +12,7 @@ from loguru import logger
 
 
 class SignalTransformerAgent:
-    """Transforms raw data into signal format with AI-generated titles"""
+    """Transforms raw data into signal format with original titles"""
     
     MERCHANT_ID = "0xmeta_merchant"
     
@@ -33,7 +33,7 @@ class SignalTransformerAgent:
     @classmethod
     def generate_title_from_text(cls, text: str, max_length: int = 100) -> str:
         """
-        Generate a short title from long text
+        Generate a short title from long text (fallback only)
         Simple extraction of first sentence or key phrase
         
         Args:
@@ -162,8 +162,8 @@ class SignalTransformerAgent:
             item.get("date") or item.get("published_at")
         )
         
-        # Get or generate title (CryptoNews always has title)
-        title = item.get("title", "")
+        # ✅ FIX: Use the original title directly from API, no generation
+        title = item.get("title", "Crypto News Update")
         
         # Text content
         text = item.get("text", "")
@@ -185,15 +185,16 @@ class SignalTransformerAgent:
         if item.get("topics"):
             feed_categories.extend(item.get("topics", []))
         
+        # ✅ FIX: Use news_url field correctly
+        news_url = item.get("news_url", "")
+        
         # Build signal
         return {
             "oxmeta_id": oxmeta_id,
             "category": category,
             "source": "cryptonews",
-            "sources": [item.get("news_url", "")],  # Array of sources
-            "title": title,
-            "short_context": title,  # Use title as short context
-            "long_context": text,  # Full text as long context
+            "sources": [news_url],  # ✅ Use news_url from normalized data
+            "title": title,  # ✅ Original title, not generated
             "text": text,
             "sentiment": sentiment,
             "sentiment_value": sentiment_value,
@@ -237,8 +238,11 @@ class SignalTransformerAgent:
         # Get tweet text
         text = item.get("text", "")
         
-        # Generate title from tweet text (tweets don't have titles)
-        title = cls.generate_title_from_text(text, max_length=80)
+        # ✅ FIX: Use original title from API if exists, only generate as fallback
+        title = item.get("title", "")
+        if not title:
+            # Only generate if API didn't provide a title
+            title = cls.generate_title_from_text(text, max_length=80)
         
         # Determine sentiment
         sentiment, sentiment_value = cls.determine_sentiment(text)
@@ -263,9 +267,7 @@ class SignalTransformerAgent:
             "source": "twitter",
             "sources": [tweet_url] if tweet_url else [],  # Array with tweet URL
             "tweet_url": tweet_url,
-            "title": title,  # AI-generated title
-            "short_context": title,  # Same as title
-            "long_context": text,  # Full tweet text
+            "title": title,  # ✅ Use original API title or fallback to generated
             "text": text,
             "sentiment": sentiment,
             "sentiment_value": sentiment_value,

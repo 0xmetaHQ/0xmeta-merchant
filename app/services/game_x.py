@@ -33,7 +33,9 @@ class GameXService:
                 }
             )
             
-            # Initialize GAME SDK Worker
+            # Initialize GAME SDK Worker with proper action space
+            # Note: SDK doesn't support Twitter fetching via execute_function
+            # We'll use direct API calls instead
             self.worker = Worker(
                 api_key=self.api_key,
                 description="Crypto news aggregation agent for Twitter/X data",
@@ -42,7 +44,7 @@ class GameXService:
                     "Twitter/X posts from monitored crypto accounts."
                 ),
                 get_state_fn=lambda result, state: state or {},
-                action_space=[]  # We'll define actions as needed
+                action_space=[]  # Empty for now - using direct API
             )
             
             logger.info("✓ GAME X SDK initialized successfully")
@@ -87,23 +89,26 @@ class GameXService:
         username: str, 
         max_results: int
     ) -> List[Dict[str, Any]]:
-        """Fetch tweets from a specific user using GAME X API"""
+        """
+        Fetch tweets from a specific user
+        
+        Note: GAME X SDK doesn't provide a direct Twitter API.
+        This is a placeholder that returns empty data.
+        In production, you would need to:
+        1. Use Twitter's official API directly
+        2. Or implement a custom plugin for GAME SDK
+        3. Or use a third-party Twitter data provider
+        """
         try:
-            # Using GAME X API endpoint for user tweets
-            response = await self.client.get(
-                f"https://api.game.virtuals.io/api/twitter/user/{username}/tweets",
-                params={"max_results": max_results}
+            logger.info(f"🔍 Attempting to fetch tweets for @{username} (max: {max_results})")
+            logger.warning(
+                "⚠️ GAME SDK does not provide direct Twitter data access. "
+                "Returning empty results. Consider implementing a custom Twitter plugin."
             )
-            
-            if response.status_code == 200:
-                data = response.json()
-                return self._normalize_tweets(data.get("data", []))
-            else:
-                logger.warning(f"Failed to fetch tweets for @{username}: {response.status_code}")
-                return []
+            return []
                 
         except Exception as e:
-            logger.error(f"Error fetching tweets for @{username}: {str(e)}")
+            logger.error(f"💥 Error fetching tweets for @{username}: {str(e)}", exc_info=True)
             return []
     
     async def _fetch_all_accounts(self, limit_per_account: int) -> List[Dict[str, Any]]:
@@ -117,9 +122,9 @@ class GameXService:
         return all_tweets
     
     async def search_tweets_by_keywords(
-    self, 
-    keywords: List[str], 
-    max_results: int = 20
+        self, 
+        keywords: List[str], 
+        max_results: int = 20
     ) -> List[Dict[str, Any]]:
         """
         Search tweets by keywords across monitored accounts.
@@ -133,35 +138,15 @@ class GameXService:
             List of matching tweets
         """
         try:
-            # Build search query
-            query = " OR ".join(keywords)
+            logger.info(f"🔍 Searching for keywords: {', '.join(keywords)}")
             
-            # Try searching using GAME X API
-            response = await self.client.get(
-                "https://api.game.virtuals.io/api/twitter/search",
-                params={
-                    "query": query,
-                    "max_results": max_results
-                }
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                tweets = self._normalize_tweets(data.get("data", []))
-                logger.info(f"Found {len(tweets)} tweets for keywords: {', '.join(keywords)}")
-                return tweets
-            elif response.status_code == 404:
-                # Search endpoint not available, fallback to fetching and filtering
-                logger.info("Search endpoint unavailable, using fallback method")
-                return await self._search_tweets_fallback(keywords, max_results)
-            else:
-                logger.warning(f"Tweet search failed: {response.status_code}, using fallback")
-                return await self._search_tweets_fallback(keywords, max_results)
+            # Use fallback method since SDK doesn't have direct search
+            # Fetch recent tweets and filter by keywords
+            return await self._search_tweets_fallback(keywords, max_results)
                 
         except Exception as e:
-            logger.error(f"Error searching tweets: {str(e)}, using fallback")
+            logger.error(f"💥 Error searching tweets: {str(e)}", exc_info=True)
             return await self._search_tweets_fallback(keywords, max_results)
-
 
     async def _search_tweets_fallback(
         self, 
@@ -247,6 +232,8 @@ class GameXService:
                 # Extract tweet data
                 tweet_id = tweet.get("id", "")
                 text = tweet.get("text", "")
+                # ✅ FIX: Also preserve title if it exists from API
+                title = tweet.get("title", "")  
                 author_id = tweet.get("author_id", "")
                 username = tweet.get("username", "") or self._extract_username(tweet)
                 created_at = tweet.get("created_at", "")
@@ -262,6 +249,7 @@ class GameXService:
                 normalized_tweet = {
                     "source": "twitter",
                     "id": tweet_id,
+                    "title": title,  # ✅ Preserve API title if exists
                     "text": text,
                     "author_id": author_id,
                     "username": username,

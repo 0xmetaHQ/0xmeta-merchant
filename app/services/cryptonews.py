@@ -173,12 +173,13 @@ class CryptoNewsService:
         """Normalize news items to consistent format"""
         news_items = []
         for item in items:
+            # ✅ FIX: Keep news_url in the normalized data
             news_items.append({
-                "source": "cryptonews",
+                "news_url": item.get("news_url", ""),  # ✅ Preserve original field
                 "title": item.get("title", ""),
                 "text": item.get("text", ""),
                 "content": item.get("text", ""),
-                "url": item.get("news_url", ""),
+                "url": item.get("news_url", ""),  # Also keep as 'url' for compatibility
                 "published_at": item.get("date", ""),
                 "date": item.get("date", ""),
                 "source_name": item.get("source_name", ""),

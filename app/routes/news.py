@@ -47,6 +47,54 @@ def create_payment_verifier(category: str):
     )
 
 
+@router.get("/free/{category}")
+async def get_free_news_by_category(
+    request: Request,
+    category: str = Path(..., description="Free category (rwa, macro, or virtuals)")
+):
+    """
+    Get news and tweets for free categories without payment requirement.
+    Only supports: rwa, macro, virtuals
+    
+    **Free Categories:**
+    - rwa: Real World Assets tokenization
+    - macro: Macro events and regulation
+    - virtuals: Virtuals Protocol
+    
+    **Returns:** JSON data with news and social updates
+    """
+    # Normalize category
+    normalized_category = normalize_category(category)
+    
+    # Restrict to free categories only
+    FREE_CATEGORIES = ["rwa", "macro_events", "virtuals"]
+    if normalized_category not in FREE_CATEGORIES:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Category not available for free access",
+                "free_categories": ["rwa", "macro", "virtuals"],
+                "message": f"Category '{category}' requires payment. Use /news/{category} endpoint.",
+                "paid_endpoint": f"{settings.BASE_URL}/news/{category}"
+            }
+        )
+    
+    # Validate category exists
+    if normalized_category not in settings.VALID_CATEGORIES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid category",
+                "message": f"Category '{category}' is not supported",
+                "valid_categories": settings.VALID_CATEGORIES
+            }
+        )
+    
+    # Fetch and return data without payment check
+    data = await NewsController.get_news_by_category(normalized_category)
+    return JSONResponse(content=data)
+
+
 @router.get("/{category}")
 async def get_news_by_category(
     request: Request,

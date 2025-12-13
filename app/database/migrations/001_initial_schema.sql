@@ -24,8 +24,6 @@ CREATE TABLE signal_items (
     
     -- Content
     title TEXT NOT NULL,
-    short_context TEXT,
-    long_context TEXT,
     text TEXT,
     
     -- Sentiment

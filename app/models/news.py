@@ -24,8 +24,6 @@ class SignalItem(Base):
     
     # Content
     title = Column(Text, nullable=False)
-    short_context = Column(Text)
-    long_context = Column(Text)
     text = Column(Text)
     
     # Sentiment analysis
