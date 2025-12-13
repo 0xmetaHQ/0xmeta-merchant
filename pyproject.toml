@@ -1,0 +1,37 @@
+[project]
+name = "0xmeta_cryptonews_aggregator"
+version = "0.1.0"
+description = "Crypto News Aggregator Service for 0xmeta"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "dotenv>=0.9.9",
+    "httpx>=0.26.0",
+    "redis>=5.0.1",
+    "psycopg2-binary>=2.9.9",
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.1",
+    "dramatiq[redis]>=1.15.0",
+    "apscheduler>=3.10.4",
+    "python-dateutil>=2.8.2",
+    "game-sdk>=0.1.0",
+    "tenacity>=8.2.3",
+    "loguru>=0.7.2",
+    "asyncpg>=0.30.0",
+    "uxly-1shot-client>=1.2.0",
+    "jinja2>=3.1.6",
+    "eth-account>=0.13.7",
+    "eth-utils>=5.3.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

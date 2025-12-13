@@ -1,0 +1,174 @@
+{% extends "base.html" %} 
+
+{% block content %}
+<div class="main-content">
+  <div class="hero">
+    <h1>🚀 Premium Crypto News</h1>
+    <p>Select a category and pay to access curated crypto news</p>
+  </div>
+
+  <!-- Category Selection -->
+  <div class="selection-card">
+    <h2>📂 Select a Category</h2>
+    <div class="category-grid" id="categoryGrid">
+      <div class="category-option" data-category="btc">
+        <div class="category-icon">₿</div>
+        <div class="category-name">Bitcoin</div>
+      </div>
+      <div class="category-option" data-category="eth">
+        <div class="category-icon">Ξ</div>
+        <div class="category-name">Ethereum</div>
+      </div>
+      <div class="category-option" data-category="sol">
+        <div class="category-icon">◎</div>
+        <div class="category-name">Solana</div>
+      </div>
+      <div class="category-option" data-category="defi">
+        <div class="category-icon">🏦</div>
+        <div class="category-name">DeFi</div>
+      </div>
+      <div class="category-option" data-category="ai_agents">
+        <div class="category-icon">🤖</div>
+        <div class="category-name">AI Agents</div>
+      </div>
+      <div class="category-option" data-category="rwa">
+        <div class="category-icon">🏢</div>
+        <div class="category-name">RWA</div>
+      </div>
+      <div class="category-option" data-category="memecoins">
+        <div class="category-icon">🐸</div>
+        <div class="category-name">Memecoins</div>
+      </div>
+      <div class="category-option" data-category="nfts">
+        <div class="category-icon">🖼️</div>
+        <div class="category-name">NFTs</div>
+      </div>
+      <div class="category-option" data-category="gaming">
+        <div class="category-icon">🎮</div>
+        <div class="category-name">Gaming</div>
+      </div>
+      <div class="category-option" data-category="stablecoins">
+        <div class="category-icon">💵</div>
+        <div class="category-name">Stablecoins</div>
+      </div>
+      <div class="category-option" data-category="macro_events">
+        <div class="category-icon">🌍</div>
+        <div class="category-name">Macro Events</div>
+      </div>
+      <div class="category-option" data-category="base">
+        <div class="category-icon">🔵</div>
+        <div class="category-name">Base</div>
+      </div>
+      <div class="category-option" data-category="liquidity">
+        <div class="category-icon">💧</div>
+        <div class="category-name">Liquidity</div>
+      </div>
+      <div class="category-option" data-category="pow">
+        <div class="category-icon">⛏️</div>
+        <div class="category-name">PoW</div>
+      </div>
+      <div class="category-option" data-category="launchpad">
+        <div class="category-icon">🚀</div>
+        <div class="category-name">Launchpad</div>
+      </div>
+      <div class="category-option" data-category="virtuals">
+        <div class="category-icon">🌐</div>
+        <div class="category-name">Virtuals</div>
+      </div>
+      <div class="category-option" data-category="trends">
+        <div class="category-icon">📈</div>
+        <div class="category-name">Trends</div>
+      </div>
+      <div class="category-option" data-category="other" id="otherCategory">
+        <div class="category-icon">✨</div>
+        <div class="category-name">Other</div>
+      </div>
+    </div>
+
+    <div class="price-info">
+      <div class="price-row">
+        <span>Content Access:</span>
+        <strong>0.01 USDC</strong>
+      </div>
+      <div class="price-row">
+        <span>0xMeta Facilitator Fee:</span>
+        <span>0.01 USDC</span>
+      </div>
+      <div class="price-row total">
+        <span>Total Payment:</span>
+        <strong>0.02 USDC</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wallet Section -->
+  <div class="wallet-section">
+    <h3>💳 Connect Your Wallet</h3>
+    <button id="connectBtn" class="btn btn-primary">🔌 Connect MetaMask</button>
+    <div id="walletInfo" class="wallet-info" style="display: none">
+      <span>✅ Connected:</span>
+      <code id="walletAddress"></code>
+    </div>
+    <button id="payBtn" class="btn btn-success" style="display: none" disabled>
+      💰 Pay 0.02 USDC & Access News
+    </button>
+  </div>
+
+  <!-- Payment Flow Animation -->
+  <div id="paymentFlow" class="payment-flow">
+    <div class="flow-steps">
+      <div class="flow-step" id="step1">
+        <div class="step-circle">1</div>
+        <div class="step-label">Authorization</div>
+      </div>
+      <div class="flow-step" id="step2">
+        <div class="step-circle">2</div>
+        <div class="step-label">Verification</div>
+      </div>
+      <div class="flow-step" id="step3">
+        <div class="step-circle">3</div>
+        <div class="step-label">Settlement</div>
+      </div>
+      <div class="flow-step" id="step4">
+        <div class="step-circle">4</div>
+        <div class="step-label">Complete</div>
+      </div>
+    </div>
+    <div class="flow-message" id="flowMessage">Preparing payment...</div>
+  </div>
+
+  <!-- News Display -->
+  <div id="newsContent"></div>
+</div>
+
+<!-- Custom Category Modal -->
+<div id="customCategoryModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>✨ Enter Custom Category</h2>
+      <button class="modal-close" id="closeModal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>Enter a custom category name to search for specific crypto news:</p>
+      <input
+        type="text"
+        id="customCategoryInput"
+        class="custom-input"
+        placeholder="e.g., layer2, dao, privacy, etc."
+        maxlength="50"
+      />
+      <div class="modal-hint">
+        <small>💡 Examples: layer2, dao, privacy, metaverse, web3, zkp</small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelCustomCategory">
+        Cancel
+      </button>
+      <button class="btn btn-primary" id="confirmCustomCategory">
+        Continue
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
