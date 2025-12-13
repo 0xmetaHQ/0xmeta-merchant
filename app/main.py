@@ -1,8 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.startup import startup_checks, shutdown_handlers
@@ -31,32 +28,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/templates/static"), name="static")
-
-# Setup Jinja2 templates
-templates = Jinja2Templates(directory="app/templates")
-
 # Include routers
 app.include_router(news)
 app.include_router(config)
 
 
-@app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    """Serve the Paywall UI as home page"""
-    return templates.TemplateResponse(
-        "paywall.html",
-        {
-            "request": request,
-            "category": "btc",  # Default category or None
-            "amount": str(settings.price_usdc),
-            "network": settings.PAYMENT_NETWORK,
-            "recipient": settings.MERCHANT_PAYOUT_WALLET,
-            "token": settings.MERCHANT_PRIVATE_KEY,
-            "base_url": settings.BASE_URL
-        }
-    )
+@app.get("/")
+async def root():
+    """API root endpoint"""
+    return {
+        "service": "0xmeta.ai",
+        "description": "Real-time crypto news aggregation API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "status": "OK"
+    }
 
 
 @app.get("/health")

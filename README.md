@@ -80,8 +80,7 @@ A production-grade crypto news aggregation API that combines CryptoNews API and 
 │   │   ├── cryptonews.py    # CryptoNews API client
 │   │   ├── game_x.py        # GAME X SDK wrapper
 │   │   └── payment/
-│   │       ├── index.py     # Payment service
-│   │       └── payment_ui.py # Wallet UI generator
+│   │       └── index.py     # Payment service
 │   │
 │   ├── workers/             # Scheduled jobs
 │   │   └── cleanup.py       # 24hr data cleanup
@@ -178,6 +177,23 @@ docker-compose up -d
 ## 📡 API Endpoints
 
 All endpoints require X402 payment (0.01 USDC + 0.01 USDC facilitator fee = 0.02 USDC total)
+
+### Base Endpoint
+
+#### `GET /`
+
+**Description:** Returns API status and information.
+**Response:**
+
+```json
+{
+  "service": "0xmeta.ai",
+  "description": "Real-time crypto news aggregation API",
+  "version": "1.0.0",
+  "docs": "/docs",
+  "status": "OK"
+}
+```
 
 ### News Endpoints
 
