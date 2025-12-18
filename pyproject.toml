@@ -27,6 +27,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "eth-account>=0.13.7",
     "eth-utils>=5.3.1",
+    "virtuals-tweepy>=0.1.6",
 ]
 
 [tool.hatch.build.targets.wheel]

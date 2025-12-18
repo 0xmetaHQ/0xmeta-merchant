@@ -29,6 +29,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "uxly-1shot-client" },
+    { name = "virtuals-tweepy" },
 ]
 
 [package.metadata]
@@ -55,6 +56,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=8.2.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.27.0" },
     { name = "uxly-1shot-client", specifier = ">=1.2.0" },
+    { name = "virtuals-tweepy", specifier = ">=0.1.6" },
 ]
 
 [[package]]
@@ -972,6 +974,15 @@ wheels = [
 ]
 
 [[package]]
+name = "oauthlib"
+version = "3.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
+]
+
+[[package]]
 name = "parsimonious"
 version = "0.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1333,6 +1344,19 @@ wheels = [
 ]
 
 [[package]]
+name = "requests-oauthlib"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "oauthlib" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9", size = 55650, upload-time = "2024-03-22T20:32:29.939Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36", size = 24179, upload-time = "2024-03-22T20:32:28.055Z" },
+]
+
+[[package]]
 name = "rlp"
 version = "4.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1539,6 +1563,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/35/2e/6a5d4cb29e2f3a41214382a2c190c9f3f480f17441c68e4f7fe31388ae4e/uxly_1shot_client-1.2.0.tar.gz", hash = "sha256:4a7b8e2255338b3685e4e0a911059f4122bf5215c861bd8ef773dce36443ea62", size = 39561, upload-time = "2025-07-30T22:33:14.544Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/71/66/58cb1fc73d60e2900365bd494ef71ac5f96fde4654fe17bb7801afb8e7b5/uxly_1shot_client-1.2.0-py3-none-any.whl", hash = "sha256:b0d7b413e88a3a0913b84657029d3b72ed638bacbc00294dda80026fa97b56f0", size = 30460, upload-time = "2025-07-30T22:33:13.247Z" },
+]
+
+[[package]]
+name = "virtuals-tweepy"
+version = "0.1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "oauthlib" },
+    { name = "requests" },
+    { name = "requests-oauthlib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6f/5b/e08ff370c991a084d7a4b64a17694ee546b08525686221d395fa4534a003/virtuals_tweepy-0.1.6.tar.gz", hash = "sha256:da3cacebded0e8f757e0b79d6fea4027fdea849b8083fd63cb054c2bda9edf53", size = 89881, upload-time = "2025-05-23T08:04:35.233Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/7a/5f4f572325616ef33193c920a46ae2a5ad0d99361bea649175bcb70684b6/virtuals_tweepy-0.1.6-py3-none-any.whl", hash = "sha256:d378d70e118596f7beaee0cac3e0f9a4022c603e36aa830f68c0111333428969", size = 102595, upload-time = "2025-05-23T08:04:33.336Z" },
 ]
 
 [[package]]

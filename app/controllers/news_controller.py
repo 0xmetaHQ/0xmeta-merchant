@@ -1,5 +1,6 @@
 """
 Controller for handling news endpoints by category
+Updated to support async content cleaning and use VALID_CATEGORIES
 """
 
 from typing import Dict, Any, List
@@ -17,16 +18,17 @@ import time
 class NewsController:
     """Controller for handling category-based news endpoints"""
     
-    # Predefined category tickers (can be overridden by AI)
     CATEGORY_TICKERS = {
         "btc": "BTC",
         "eth": "ETH",
         "sol": "SOL",
-        "base": "ETH,OP,ARB",  # L2s
+        "base": "ETH,OP,ARB",
         "defi": "UNI,AAVE,MKR,CRV,SNX,COMP",
         "ai_agents": "FET,AGIX,OCEAN,TAO,RNDR",
+        "aptos": "APT",
         "rwa": "ONDO,TRU,RIO,POLYX,MPL",
         "liquidity": "UNI,CAKE,SUSHI,DYDX,BAL",
+        "macro_events": "BTC,ETH",
         "proof_of_work": "BTC,LTC,BCH,ETC,DASH",
         "memecoins": "DOGE,SHIB,PEPE,FLOKI,BONK",
         "stablecoins": "USDT,USDC,DAI,BUSD,FRAX",
@@ -34,16 +36,25 @@ class NewsController:
         "gaming": "AXS,SAND,MANA,ENJ,GALA,IMX",
         "launchpad": "MANTA,SUI,SEI,APT,INJ",
         "virtuals": "VIRTUAL,GAME,AI,PRIME",
+        "ondo": "ONDO",
+        "perp_dexs": "DYDX,GMX,GNS,PERP",
+        "crypto": "BTC,ETH,SOL",
+        "dats": "TAO,FET,AGIX",
+        "hyperliquid": "HYPE",
+        "machine_learning": "TAO,FET,AGIX,OCEAN",
+        "ripple": "XRP",
+        "tech": "BTC,ETH",
+        "whale_movement": "BTC,ETH,SOL",
     }
     
-    # Category-specific keywords for filtering
     CATEGORY_KEYWORDS = {
         "btc": ["bitcoin", "btc", "satoshi", "lightning"],
         "eth": ["ethereum", "eth", "vitalik", "eip", "gas"],
         "sol": ["solana", "sol", "phantom", "raydium"],
         "base": ["base", "coinbase", "cbeth"],
         "defi": ["defi", "dex", "amm", "yield", "lending", "borrowing"],
-        "ai_agents": ["ai", "agent", "bot", "llm", "autonomous", "virtual", "virtuals"],
+        "ai_agents": ["ai", "agent", "bot", "llm", "autonomous", "virtual"],
+        "aptos": ["aptos", "apt", "move"],
         "rwa": ["rwa", "real world asset", "tokenization", "securities"],
         "liquidity": ["liquidity", "volume", "tvl", "pool", "swap", "trading"],
         "macro_events": ["regulation", "sec", "fed", "etf", "government", "policy"],
@@ -55,20 +66,41 @@ class NewsController:
         "launchpad": ["launch", "ido", "ico", "token sale"],
         "virtuals": ["virtuals", "virtual protocol", "game"],
         "trends": ["trending", "viral", "rally", "pump"],
+        "ondo": ["ondo", "ondo finance", "tokenized"],
+        "perp_dexs": ["perpetual", "perp", "futures", "leverage"],
+        "crypto": ["crypto", "cryptocurrency", "blockchain"],
+        "dats": ["data", "decentralized", "storage"],
+        "hyperliquid": ["hyperliquid", "hype"],
+        "machine_learning": ["machine learning", "ml", "neural", "training"],
+        "ripple": ["ripple", "xrp"],
+        "tech": ["technology", "innovation", "protocol"],
+        "whale_movement": ["whale", "large transfer", "big move"],
         "other": []
     }
     
     @staticmethod
-    async def get_tickers_for_category(category: str) -> str:
-        """
-        Get tickers for a category - uses predefined or AI-generated
+    def _normalize_category(category: str) -> str:
+        """Normalize category using settings.CATEGORY_ALIASES"""
+        normalized = category.lower().strip()
         
-        Args:
-            category: Category name
-            
-        Returns:
-            Comma-separated ticker string
-        """
+        # Check if it's an alias
+        if normalized in settings.CATEGORY_ALIASES:
+            return settings.CATEGORY_ALIASES[normalized]
+        
+        # Check if it's already valid
+        if normalized in settings.VALID_CATEGORIES:
+            return normalized
+        
+        # Default to 'other'
+        logger.warning(f"Invalid category '{category}', defaulting to 'other'")
+        return "other"
+    
+    @staticmethod
+    async def get_tickers_for_category(category: str) -> str:
+        """Get tickers for a category - uses predefined or AI-generated"""
+        # Normalize category first
+        category = NewsController._normalize_category(category)
+        
         # Check if we have predefined tickers
         if category in NewsController.CATEGORY_TICKERS:
             tickers = NewsController.CATEGORY_TICKERS[category]
@@ -88,12 +120,21 @@ class NewsController:
         return tickers
     
     @staticmethod
-    async def get_news_by_category(category: str) -> Dict[str, Any]:
+    async def get_news_by_category(
+        category: str,
+        clean_content: bool = True
+    ) -> Dict[str, Any]:
         """
         Fetch and transform news and tweets for a specific category
-        Dynamically generates tickers for unknown categories
+        
+        Args:
+            category: Category name (will be normalized to VALID_CATEGORIES)
+            clean_content: Whether to clean content with AI (default: True)
         """
-        cache_key = f"news:{category}"
+        # Normalize category
+        category = NewsController._normalize_category(category)
+        
+        cache_key = f"news:{category}:{'clean' if clean_content else 'raw'}"
         
         # Check cache
         cached = redis_client.get(cache_key)
@@ -101,20 +142,17 @@ class NewsController:
             logger.info(f"✓ Returning cached data for category: {category}")
             return cached
         
-        # Get keywords for this category
+        # Get keywords and tickers
         keywords = NewsController.CATEGORY_KEYWORDS.get(category, [])
-        
-        # Get or generate tickers for this category
         tickers = await NewsController.get_tickers_for_category(category)
         
-        logger.info(f"🔍 Fetching {category} news with tickers: {tickers}")
+        logger.info(f"🔍 Fetching {category} news with tickers: {tickers}, keywords: {keywords}")
         
         # Fetch from both sources
         news = []
         tweets = []
         
         if category == "trends":
-            # For trends, get trending/latest from both sources
             logger.info("Fetching trending news...")
             news = await crypto_news_service.fetch_trending_news(limit=50)
             tweets = await game_x_service.fetch_latest_tweets(max_results=50)
@@ -123,23 +161,21 @@ class NewsController:
             logger.info(f"Fetching news for tickers: {tickers}")
             news = await crypto_news_service.fetch_ticker_news(tickers, limit=50)
             
-            # For tweets, use keywords if available, otherwise fetch latest
+            # For tweets, ALWAYS fetch from whitelisted accounts and filter by keywords
+            logger.info(f"Fetching tweets from whitelisted accounts with keyword filter: {keywords}")
             if keywords:
-                logger.info(f"Searching tweets with keywords: {keywords}")
                 tweets = await game_x_service.search_tweets_by_keywords(keywords, max_results=50)
             else:
-                logger.info("Fetching latest tweets (no keywords)")
+                # Even without keywords, fetch from whitelisted accounts only
                 tweets = await game_x_service.fetch_latest_tweets(max_results=50)
         
         logger.info(
             f"📊 Raw fetch results - News: {len(news)}, Tweets: {len(tweets)}"
         )
         
-        # Filter items that match category (more lenient filtering)
+        # Filter items that match category
         filtered_news = []
         for item in news:
-            # For ticker-based fetches, keep all items
-            # For other categories, filter by keywords
             if category == "trends" or tickers or NewsController._matches_category(item, category, keywords):
                 filtered_news.append(item)
         
@@ -153,7 +189,7 @@ class NewsController:
             f"Tweets: {len(filtered_tweets)}/{len(tweets)}"
         )
         
-        # If no results, try relaxed filtering
+        # If no results, use relaxed filtering
         if len(filtered_news) == 0 and len(news) > 0:
             logger.warning(f"No news items passed filter, using all {len(news)} items")
             filtered_news = news
@@ -162,17 +198,13 @@ class NewsController:
             logger.warning(f"No tweets passed filter, using all {len(tweets)} items")
             filtered_tweets = tweets
         
-        # Transform to signal format using agent
-        result = SignalTransformerAgent.transform_items(
+        # Transform items (async)
+        result = await SignalTransformerAgent.transform_items(
             filtered_news,
             filtered_tweets,
-            category
+            category,
+            clean_content=clean_content
         )
-        
-        # Add cache TTL and ticker info
-        result["metadata"]["cache_ttl"] = 3600
-        result["metadata"]["tickers_used"] = tickers
-        result["metadata"]["keywords_used"] = keywords
         
         # Cache result
         redis_client.set(cache_key, result)
@@ -189,34 +221,32 @@ class NewsController:
     
     @staticmethod
     def list_available_categories(price: str, network: str) -> Dict[str, Any]:
-        """
-        List all available news categories with their descriptions and pricing info
-        """
+        """List all available news categories from VALID_CATEGORIES"""
+        categories_info = []
+        
+        for cat in settings.VALID_CATEGORIES:
+            # Get canonical name (skip aliases)
+            if cat in settings.CATEGORY_ALIASES.values():
+                continue
+            
+            # Find aliases
+            aliases = [k for k, v in settings.CATEGORY_ALIASES.items() if v == cat]
+            
+            categories_info.append({
+                "name": cat,
+                "aliases": aliases,
+                "description": NewsController._get_category_description(cat),
+                "tickers": NewsController.CATEGORY_TICKERS.get(cat, "Dynamic")
+            })
+        
         return {
-            "categories": [
-                {"name": "btc", "aliases": ["bitcoin"], "description": "Bitcoin news and updates", "tickers": NewsController.CATEGORY_TICKERS.get("btc", "")},
-                {"name": "eth", "aliases": ["ethereum"], "description": "Ethereum ecosystem", "tickers": NewsController.CATEGORY_TICKERS.get("eth", "")},
-                {"name": "sol", "aliases": ["solana"], "description": "Solana ecosystem", "tickers": NewsController.CATEGORY_TICKERS.get("sol", "")},
-                {"name": "base", "aliases": [], "description": "Base chain news", "tickers": NewsController.CATEGORY_TICKERS.get("base", "")},
-                {"name": "defi", "aliases": [], "description": "DeFi protocols and updates", "tickers": NewsController.CATEGORY_TICKERS.get("defi", "")},
-                {"name": "ai_agents", "aliases": ["ai", "agents"], "description": "AI agents and automation", "tickers": NewsController.CATEGORY_TICKERS.get("ai_agents", "")},
-                {"name": "rwa", "aliases": [], "description": "Real World Assets tokenization", "tickers": NewsController.CATEGORY_TICKERS.get("rwa", "")},
-                {"name": "liquidity", "aliases": [], "description": "DEX liquidity and trading", "tickers": NewsController.CATEGORY_TICKERS.get("liquidity", "")},
-                {"name": "macro_events", "aliases": ["macro"], "description": "Regulation and institutional news", "tickers": "N/A"},
-                {"name": "proof_of_work", "aliases": ["pow", "mining"], "description": "Mining and PoW chains", "tickers": NewsController.CATEGORY_TICKERS.get("proof_of_work", "")},
-                {"name": "memecoins", "aliases": ["meme"], "description": "Meme tokens", "tickers": NewsController.CATEGORY_TICKERS.get("memecoins", "")},
-                {"name": "stablecoins", "aliases": ["stable"], "description": "Stablecoin news", "tickers": NewsController.CATEGORY_TICKERS.get("stablecoins", "")},
-                {"name": "nfts", "aliases": ["nft"], "description": "NFT marketplace and collections", "tickers": NewsController.CATEGORY_TICKERS.get("nfts", "")},
-                {"name": "gaming", "aliases": [], "description": "Crypto gaming", "tickers": NewsController.CATEGORY_TICKERS.get("gaming", "")},
-                {"name": "launchpad", "aliases": [], "description": "Token launches", "tickers": NewsController.CATEGORY_TICKERS.get("launchpad", "")},
-                {"name": "virtuals", "aliases": [], "description": "Virtuals Protocol", "tickers": NewsController.CATEGORY_TICKERS.get("virtuals", "")},
-                {"name": "trends", "aliases": [], "description": "Trending topics", "tickers": "All"},
-                {"name": "other", "aliases": [], "description": "AI-generated tickers for any category", "tickers": "Dynamic"}
-            ],
+            "categories": categories_info,
             "features": {
                 "dynamic_tickers": True,
                 "ai_powered": True,
-                "custom_categories": "Supported - AI will generate relevant tickers"
+                "content_cleaning": True,
+                "whitelisted_accounts_only": True,
+                "custom_categories": "Supported via 'other' category"
             },
             "pricing": {
                 "amount": price,
@@ -226,10 +256,45 @@ class NewsController:
         }
     
     @staticmethod
+    def _get_category_description(category: str) -> str:
+        """Get human-readable description for category"""
+        descriptions = {
+            "btc": "Bitcoin news and updates",
+            "eth": "Ethereum ecosystem",
+            "sol": "Solana ecosystem",
+            "base": "Base chain news",
+            "defi": "DeFi protocols and updates",
+            "ai_agents": "AI agents and automation",
+            "aptos": "Aptos blockchain",
+            "rwa": "Real World Assets tokenization",
+            "liquidity": "DEX liquidity and trading",
+            "macro_events": "Regulation and institutional news",
+            "proof_of_work": "Mining and PoW chains",
+            "memecoins": "Meme tokens",
+            "stablecoins": "Stablecoin news",
+            "nfts": "NFT marketplace and collections",
+            "gaming": "Crypto gaming",
+            "launchpad": "Token launches",
+            "virtuals": "Virtuals Protocol",
+            "trends": "Trending topics",
+            "ondo": "Ondo Finance",
+            "perp_dexs": "Perpetual DEX protocols",
+            "crypto": "General crypto news",
+            "dats": "Decentralized data and storage",
+            "hyperliquid": "Hyperliquid protocol",
+            "machine_learning": "ML and AI in crypto",
+            "ripple": "Ripple and XRP",
+            "tech": "Technology and innovation",
+            "whale_movement": "Large whale transactions",
+            "other": "AI-generated tickers for custom topics"
+        }
+        return descriptions.get(category, "Crypto news category")
+    
+    @staticmethod
     def _matches_category(item: Dict[str, Any], category: str, keywords: list) -> bool:
         """Check if an item matches the requested category"""
         
-        # For "trends" or "other", accept all
+        # "trends" and "other" accept all
         if category in ["trends", "other"]:
             return True
         
@@ -242,15 +307,13 @@ class NewsController:
         if "content" in item:
             text += item["content"].lower() + " "
         
-        # Check tickers for chain-specific categories
+        # Check tickers (strong signal)
         tickers = item.get("tickers", [])
         if tickers:
-            # If item has tickers, it's likely relevant
             return True
         
-        # Check keywords (relaxed matching)
+        # No keywords means accept all (for ticker-based fetches)
         if not keywords:
-            # No keywords means accept all (for ticker-based fetches)
             return True
         
         # Must match at least one keyword
