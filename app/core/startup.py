@@ -54,13 +54,13 @@ async def startup_checks():
     #     logger.error(f"✗ Payment service initialization failed: {str(e)}")
     #     all_checks_passed = False
     
-    # # 6. Cleanup Worker
-    # logger.info("\n[6/6] Starting Cleanup Worker...")
-    # try:
-    #     cleanup_worker.start()
-    # except Exception as e:
-    #     logger.error(f"✗ Cleanup worker failed to start: {str(e)}")
-    #     all_checks_passed = False
+    # 6. Cleanup Worker
+    logger.info("\n[6/6] Starting Cleanup Worker...")
+    try:
+        cleanup_worker.start()
+    except Exception as e:
+        logger.error(f"✗ Cleanup worker failed to start: {str(e)}")
+        all_checks_passed = False
     
     # Final Status
     logger.info("\n" + "=" * 60)

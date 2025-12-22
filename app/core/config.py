@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str
     REDIS_TTL: int = 3600
+    NEWS_CACHE_DURATION: int = 3600  # 1 hour db cache freshness
+
     
     # Worker Configuration
     DRAMATIQ_REDIS_URL: str

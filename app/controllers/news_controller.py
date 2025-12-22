@@ -142,6 +142,47 @@ class NewsController:
             logger.info(f"✓ Returning cached data for category: {category}")
             return cached
         
+        # Check Database (Neon/Postgres)
+        from app.database.session import get_session
+        from sqlalchemy import select
+        from app.models.news import CategoryFeed
+        
+        async with get_session() as db:
+            result = await db.execute(
+                select(CategoryFeed)
+                .where(CategoryFeed.category == category)
+                .order_by(CategoryFeed.last_updated.desc())
+                .limit(1)
+            )
+            existing_feed = result.scalar_one_or_none()
+            
+            if existing_feed:
+                # Check freshness
+                age = time.time() - existing_feed.last_updated
+                if age < settings.NEWS_CACHE_DURATION:
+                    logger.info(f"✓ Found fresh data in DB for {category} (age: {int(age)}s)")
+                    
+                    data = {
+                        "category": existing_feed.category,
+                        "metadata": {
+                            "total_news": existing_feed.total_news,
+                            "total_tweets": existing_feed.total_tweets,
+                            "total_items": existing_feed.total_items,
+                            "last_updated": existing_feed.last_updated
+                        },
+                        "cryptonews": existing_feed.cryptonews_items,
+                        "twitter": existing_feed.twitter_items
+                    }
+                    
+                    # Hydrate Redis
+                    redis_client.set(cache_key, data)
+                    
+                    return data
+                else:
+                    logger.info(f"⌛ DB data for {category} is stale (age: {int(age)}s), fetching fresh...")
+            else:
+                logger.info(f"∅ No DB data found for {category}, fetching fresh...")
+        
         # Get keywords and tickers
         keywords = NewsController.CATEGORY_KEYWORDS.get(category, [])
         tickers = await NewsController.get_tickers_for_category(category)

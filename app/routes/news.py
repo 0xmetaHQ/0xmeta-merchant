@@ -1,41 +1,29 @@
-from fastapi import APIRouter, HTTPException, Request, Depends, Path
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from typing import Tuple, Dict, Any
+"""
+News API routes with x402 payment via 0xmeta facilitator
+"""
+
+from fastapi import APIRouter, HTTPException, Request, Path
+from fastapi.responses import JSONResponse
+from typing import Tuple
+
 from app.controllers.news_controller import NewsController
 from app.services.x402 import X402PaymentVerifier, PaymentRequirements
 from app.core.config import settings
 
-import os
 import logging
-
 
 router = APIRouter(prefix="/news", tags=["news"])
 logger = logging.getLogger(__name__)
 
-# Setup Jinja2 templates
-templates = Jinja2Templates(directory="app/templates")
-
 
 def normalize_category(category: str) -> str:
-    """Normalize category name"""
+    """Normalize category name using configured aliases"""
     category_lower = category.lower()
     return settings.CATEGORY_ALIASES.get(category_lower, category_lower)
 
 
-@router.get("/")
-async def list_categories():
-    """
-    **Returns:** List of valid categories with descriptions and pricing information
-    """
-    return NewsController.list_available_categories(
-        price=str(settings.PRICE_PER_REQUEST),
-        network=settings.PAYMENT_NETWORK
-    )
-
-
-def create_payment_verifier(category: str):
-    """Factory function to create X402PaymentVerifier with proper parameters"""
+def create_payment_verifier(category: str) -> X402PaymentVerifier:
+    """Factory function to create X402PaymentVerifier for a specific category"""
     return X402PaymentVerifier(
         network=settings.PAYMENT_NETWORK,
         pay_to_address=settings.MERCHANT_PAYOUT_WALLET,
@@ -47,23 +35,27 @@ def create_payment_verifier(category: str):
     )
 
 
+@router.get("/")
+async def list_categories():
+    """
+    List all available news categories with descriptions and pricing.
+    
+    **Returns:** 
+    - List of categories with aliases, descriptions, and tickers
+    - Pricing information (amount, currency, network)
+    - Available features
+    """
+    return NewsController.list_available_categories(
+        price=str(settings.PRICE_PER_REQUEST),
+        network=settings.PAYMENT_NETWORK
+    )
+
+
 @router.get("/free/{category}")
 async def get_free_news_by_category(
-    request: Request,
-    category: str = Path(..., description="Free category (rwa, macro, or virtuals)")
+    category: str = Path(..., description="Free category: rwa, macro, or virtuals")
 ):
-    """
-    Get news and tweets for free categories without payment requirement.
-    Only supports: rwa, macro, virtuals
     
-    **Free Categories:**
-    - rwa: Real World Assets tokenization
-    - macro: Macro events and regulation
-    - virtuals: Virtuals Protocol
-    
-    **Returns:** JSON data with news and social updates
-    """
-    # Normalize category
     normalized_category = normalize_category(category)
     
     # Restrict to free categories only
@@ -74,8 +66,9 @@ async def get_free_news_by_category(
             detail={
                 "error": "Category not available for free access",
                 "free_categories": ["rwa", "macro", "virtuals"],
-                "message": f"Category '{category}' requires payment. Use /news/{category} endpoint.",
-                "paid_endpoint": f"{settings.BASE_URL}/news/{category}"
+                "message": f"Category '{category}' requires payment",
+                "paid_endpoint": f"{settings.BASE_URL}/news/{category}",
+                "price": f"{int(settings.PRICE_PER_REQUEST) / 1_000_000} USDC"
             }
         )
     
@@ -86,11 +79,12 @@ async def get_free_news_by_category(
             detail={
                 "error": "Invalid category",
                 "message": f"Category '{category}' is not supported",
-                "valid_categories": settings.VALID_CATEGORIES
+                "valid_categories": list(settings.VALID_CATEGORIES)
             }
         )
     
-    # Fetch and return data without payment check
+    # Fetch and return data (no payment required)
+    logger.info(f"📖 Free access to category: {normalized_category}")
     data = await NewsController.get_news_by_category(normalized_category)
     return JSONResponse(content=data)
 
@@ -98,59 +92,56 @@ async def get_free_news_by_category(
 @router.get("/{category}")
 async def get_news_by_category(
     request: Request,
-    category: str = Path(..., description="Category name (e.g., btc, rwa, ai_agents)"),
+    category: str = Path(..., description="Category name (e.g., btc, base, ai_agents)")
 ):
-    """
-    Get news and tweets for a specific category
-    Requires X402 payment or shows paywall.
-    Returns HTML paywall if 402, JSON data if settled.
-    """
-    # Normalize category
+    # Normalize and validate category
     normalized_category = normalize_category(category)
     
-    # Validate category
     if normalized_category not in settings.VALID_CATEGORIES:
         raise HTTPException(
             status_code=400,
             detail={
                 "error": "Invalid category",
                 "message": f"Category '{category}' is not supported",
-                "valid_categories": settings.VALID_CATEGORIES
+                "valid_categories": list(settings.VALID_CATEGORIES),
+                "free_categories": ["rwa", "macro", "virtuals"]
             }
         )
     
-    # Create payment verifier
+    # Create payment verifier for this category
     payment_verifier = create_payment_verifier(normalized_category)
     
-    # Check payment
+    # Verify and settle payment
+    logger.info(f"🔐 Checking payment for category: {normalized_category}")
+    
     try:
         settled, payment_requirements = await payment_verifier(
             x_payment=request.headers.get("X-Payment"),
+            x_payment_hash=request.headers.get("X-Payment-Hash"),
             user_agent=request.headers.get("User-Agent"),
             accept=request.headers.get("Accept")
         )
+        
     except HTTPException as e:
-        # Payment required - show paywall
+        # Re-raise 402 errors with clean response (no HTML)
         if e.status_code == 402:
-            return templates.TemplateResponse(
-                "paywall.html",
-                {
-                    "request": request,
-                    "category": normalized_category,
-                    "amount": "0.01",
-                    "network": settings.PAYMENT_NETWORK,
-                    "recipient": settings.MERCHANT_PAYOUT_WALLET,
-                    "token": settings.MERCHANT_PRIVATE_KEY,
-                    "payment_requirements": e.detail.get("accepts", [{}])[0] if isinstance(e.detail, dict) else {},
-                    "base_url": settings.BASE_URL
-                }
-            )
+            logger.warning(f"❌ Payment required for category: {normalized_category}")
+            raise
         raise e
     
-    # Payment verified - fetch and return data
+    # Payment successfully verified and settled
     if settled:
+        logger.info(f"✅ Payment settled for category: {normalized_category}")
         data = await NewsController.get_news_by_category(normalized_category)
         return JSONResponse(content=data)
     
-    # Shouldn't reach here, but just in case
-    raise HTTPException(status_code=402, detail="Payment verification failed")
+    # Fallback (should not reach here)
+    logger.error(f"⚠️  Payment verification returned False without raising exception")
+    raise HTTPException(
+        status_code=402,
+        detail={
+            "x402Version": 1,
+            "error": "Payment verification failed",
+            "accepts": [payment_requirements.model_dump(mode='json')]
+        }
+    )
