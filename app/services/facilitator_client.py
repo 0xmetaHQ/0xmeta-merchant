@@ -1,6 +1,3 @@
-# ============================================================================
-# FILE: app/services/facilitator_client.py
-# ============================================================================
 """
 0xmeta Facilitator Client
 Handles payment verification and settlement
