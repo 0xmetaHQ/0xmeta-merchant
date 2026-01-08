@@ -5,6 +5,7 @@ from app.core.logging import setup_logging
 from app.core.startup import startup_checks, shutdown_handlers
 from app.routes import news, config
 import sys
+import uvicorn
 
 # Setup logging
 logger = setup_logging() 
@@ -107,7 +108,7 @@ async def shutdown_event():
 
 
 if __name__ == "__main__":
-    import uvicorn
+    
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

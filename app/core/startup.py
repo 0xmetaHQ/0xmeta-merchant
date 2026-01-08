@@ -1,7 +1,7 @@
 from loguru import logger
 from app.database.session import init_db
 from app.cache.redis_client import redis_client
-from app.services.cryptonews import crypto_news_service
+from app.services.cryptopanic import cryptopanic_service
 from app.services.game_x import game_x_service
 from app.workers.cleanup import cleanup_worker
 import sys
@@ -34,11 +34,13 @@ async def startup_checks():
     if not redis_status:
         all_checks_passed = False
     
-    # 3. CryptoNews API
-    logger.info("\n[3/6] Checking CryptoNews API...")
-    cryptonews_status = await crypto_news_service.initialize()
-    if not cryptonews_status:
-        all_checks_passed = False
+    # 3. CryptoPanic News API
+    logger.info("\n[3/6] Checking CryptoPanic News API...")
+    cryptopanic_status = await cryptopanic_service.initialize()
+    if not cryptopanic_status:
+        logger.warning("⚠️  CryptoPanic News API unavailable - news endpoints will return limited data")
+        # Don't fail startup - we can still use GAME X for tweets
+
     
     # 4. GAME X API
     logger.info("\n[4/6] Checking GAME X API...")
@@ -80,8 +82,8 @@ async def shutdown_handlers():
     logger.info("\n🛑 Shutting down application...")
     
     try:
-        await crypto_news_service.close()
-        logger.info("✓ CryptoNews service closed")
+        await cryptopanic_service.close()
+        logger.info("✓ CryptoPanic News service closed")
     except:
         pass
     

@@ -51,42 +51,70 @@ async def list_categories():
     )
 
 
-@router.get("/free/{category}")
-async def get_free_news_by_category(
-    category: str = Path(..., description="Free category: rwa, macro, or virtuals")
+@router.get("/preview/{category}")
+async def get_news_preview(
+    category: str = Path(..., description="Category name for preview (e.g., btc, eth, sol)")
 ):
+    """
+    Get preview of news for a SPECIFIC category (3 items, no payment required).
     
+    **Path Parameters:**
+    - category: Category name (e.g., btc, base, ai_agents)
+    
+    **Returns:**
+    - Preview data with 3 news items
+    - No payment verification required
+    - Pricing information for full access
+    """
+    # Normalize and validate category
     normalized_category = normalize_category(category)
     
-    # Restrict to free categories only
-    FREE_CATEGORIES = ["rwa", "macro_events", "virtuals"]
-    if normalized_category not in FREE_CATEGORIES:
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "Category not available for free access",
-                "free_categories": ["rwa", "macro", "virtuals"],
-                "message": f"Category '{category}' requires payment",
-                "paid_endpoint": f"{settings.BASE_URL}/news/{category}",
-                "price": f"{int(settings.PRICE_PER_REQUEST) / 1_000_000} USDC"
-            }
-        )
-    
-    # Validate category exists
     if normalized_category not in settings.VALID_CATEGORIES:
         raise HTTPException(
-            status_code=400,
+            status_code=404,
             detail={
                 "error": "Invalid category",
                 "message": f"Category '{category}' is not supported",
-                "valid_categories": list(settings.VALID_CATEGORIES)
+                "valid_categories": list(settings.VALID_CATEGORIES),
+                "hint": "Use GET /news/ to see all available categories"
             }
         )
     
-    # Fetch and return data (no payment required)
-    logger.info(f"📖 Free access to category: {normalized_category}")
-    data = await NewsController.get_news_by_category(normalized_category)
-    return JSONResponse(content=data)
+    logger.info(f"📋 Fetching preview for category: {normalized_category}")
+    
+    try:
+        # Fetch only 3 items for preview
+        data = await NewsController.get_news_by_category(
+            normalized_category, 
+            limit=3
+        )
+        
+        preview_items = data.get("cryptonews", [])[:3]
+        
+        return JSONResponse(content={
+            "category": normalized_category,
+            "items": preview_items,
+            "preview_count": len(preview_items),
+            "total_available": data.get("metadata", {}).get("total_news", 0),
+            "message": "Preview limited to 3 items. Pay to access full data.",
+            "pricing": {
+                "amount": str(settings.PRICE_PER_REQUEST),
+                "currency": "USDC",
+                "network": settings.PAYMENT_NETWORK
+            },
+            "full_access_endpoint": f"{settings.BASE_URL}/news/{normalized_category}"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching preview for {normalized_category}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to fetch preview",
+                "message": str(e),
+                "category": normalized_category
+            }
+        )
 
 
 @router.get("/{category}")
@@ -132,7 +160,7 @@ async def get_news_by_category(
     # Payment successfully verified and settled
     if settled:
         logger.info(f"✅ Payment settled for category: {normalized_category}")
-        data = await NewsController.get_news_by_category(normalized_category)
+        data = await NewsController.get_news_by_category(normalized_category, limit=50)
         return JSONResponse(content=data)
     
     # Fallback (should not reach here)

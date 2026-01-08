@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     FACILITATOR_URL: str
     APP_NAME: str
     
-    # Crypto News
-    CRYPTO_NEWS_API_KEY: str
+    # CryptoPanic API
+    CRYPTOPANIC_URL: str = "https://cryptopanic.com/api/v2"
+    CRYPTOPANIC_AUTH_TOKEN: str
 
     # Game X
     GAME_API_KEY: str
@@ -146,6 +147,68 @@ class Settings(BaseSettings):
         "meme": "memecoins",
         "stable": "stablecoins",
         "nft": "nfts",
+    }
+
+    # Category to ticker mappings
+    CATEGORY_TICKERS: Dict[str, str] = {
+        "btc": "BTC",
+        "eth": "ETH",
+        "sol": "SOL",
+        "base": "ETH,OP,ARB",
+        "defi": "UNI,AAVE,MKR,CRV,SNX,COMP",
+        "ai_agents": "FET,AGIX,OCEAN,TAO,RNDR",
+        "aptos": "APT",
+        "rwa": "ONDO,TRU,RIO,POLYX,MPL",
+        "liquidity": "UNI,CAKE,SUSHI,DYDX,BAL",
+        "macro_events": "BTC,ETH",
+        "proof_of_work": "BTC,LTC,BCH,ETC,DASH",
+        "memecoins": "DOGE,SHIB,PEPE,FLOKI,BONK",
+        "stablecoins": "USDT,USDC,DAI,BUSD,FRAX",
+        "nfts": "BLUR,LOOKS,APE,DEGEN",
+        "gaming": "AXS,SAND,MANA,ENJ,GALA,IMX",
+        "launchpad": "MANTA,SUI,SEI,APT,INJ",
+        "virtuals": "VIRTUAL,GAME,AI,PRIME",
+        "ondo": "ONDO",
+        "perp_dexs": "DYDX,GMX,GNS,PERP",
+        "crypto": "BTC,ETH,SOL",
+        "dats": "TAO,FET,AGIX",
+        "hyperliquid": "HYPE",
+        "machine_learning": "TAO,FET,AGIX,OCEAN",
+        "ripple": "XRP",
+        "tech": "BTC,ETH",
+        "whale_movement": "BTC,ETH,SOL",
+    }
+
+    # Category keywords for filtering
+    CATEGORY_KEYWORDS: Dict[str, List[str]] = {
+        "btc": ["bitcoin", "btc", "satoshi", "lightning"],
+        "eth": ["ethereum", "eth", "vitalik", "eip", "gas"],
+        "sol": ["solana", "sol", "phantom", "raydium"],
+        "base": ["base", "coinbase", "cbeth"],
+        "defi": ["defi", "dex", "amm", "yield", "lending", "borrowing"],
+        "ai_agents": ["ai", "agent", "bot", "llm", "autonomous", "virtual"],
+        "aptos": ["aptos", "apt", "move"],
+        "rwa": ["rwa", "real world asset", "tokenization", "securities"],
+        "liquidity": ["liquidity", "volume", "tvl", "pool", "swap", "trading"],
+        "macro_events": ["regulation", "sec", "fed", "etf", "government", "policy"],
+        "proof_of_work": ["mining", "hashrate", "pow", "miner", "asic", "difficulty"],
+        "memecoins": ["meme", "doge", "shib", "pepe", "bonk", "wif"],
+        "stablecoins": ["usdt", "usdc", "dai", "stable", "tether"],
+        "nfts": ["nft", "opensea", "blur", "ordinals"],
+        "gaming": ["gaming", "play to earn", "p2e", "metaverse"],
+        "launchpad": ["launch", "ido", "ico", "token sale"],
+        "virtuals": ["virtuals", "virtual protocol", "game"],
+        "trends": ["trending", "viral", "rally", "pump"],
+        "ondo": ["ondo", "ondo finance", "tokenized"],
+        "perp_dexs": ["perpetual", "perp", "futures", "leverage"],
+        "crypto": ["crypto", "cryptocurrency", "blockchain"],
+        "dats": ["data", "decentralized", "storage"],
+        "hyperliquid": ["hyperliquid", "hype"],
+        "machine_learning": ["machine learning", "ml", "neural", "training"],
+        "ripple": ["ripple", "xrp"],
+        "tech": ["technology", "innovation", "protocol"],
+        "whale_movement": ["whale", "large transfer", "big move"],
+        "other": []
     }
 
     # ✅ NEW: Auto-detect USDC address based on network

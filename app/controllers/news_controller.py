@@ -3,80 +3,23 @@ Controller for handling news endpoints by category
 Updated to support async content cleaning and use VALID_CATEGORIES
 """
 
-from typing import Dict, Any, List
-from app.services.cryptonews import crypto_news_service
+from typing import Dict, Any, List, Optional
+from app.services.cryptopanic import cryptopanic_service
 from app.services.game_x import game_x_service
 from app.agents.signal_transformer import SignalTransformerAgent
 from app.agents.ticker_generator import TickerGeneratorAgent
 from app.cache.redis_client import redis_client
 from app.queue.tasks import save_category_data
+from app.database.session import get_session
+from sqlalchemy import select
+from app.models.news import CategoryFeed
 from app.core.config import settings
 from loguru import logger
 import time
 
 
 class NewsController:
-    """Controller for handling category-based news endpoints"""
-    
-    CATEGORY_TICKERS = {
-        "btc": "BTC",
-        "eth": "ETH",
-        "sol": "SOL",
-        "base": "ETH,OP,ARB",
-        "defi": "UNI,AAVE,MKR,CRV,SNX,COMP",
-        "ai_agents": "FET,AGIX,OCEAN,TAO,RNDR",
-        "aptos": "APT",
-        "rwa": "ONDO,TRU,RIO,POLYX,MPL",
-        "liquidity": "UNI,CAKE,SUSHI,DYDX,BAL",
-        "macro_events": "BTC,ETH",
-        "proof_of_work": "BTC,LTC,BCH,ETC,DASH",
-        "memecoins": "DOGE,SHIB,PEPE,FLOKI,BONK",
-        "stablecoins": "USDT,USDC,DAI,BUSD,FRAX",
-        "nfts": "BLUR,LOOKS,APE,DEGEN",
-        "gaming": "AXS,SAND,MANA,ENJ,GALA,IMX",
-        "launchpad": "MANTA,SUI,SEI,APT,INJ",
-        "virtuals": "VIRTUAL,GAME,AI,PRIME",
-        "ondo": "ONDO",
-        "perp_dexs": "DYDX,GMX,GNS,PERP",
-        "crypto": "BTC,ETH,SOL",
-        "dats": "TAO,FET,AGIX",
-        "hyperliquid": "HYPE",
-        "machine_learning": "TAO,FET,AGIX,OCEAN",
-        "ripple": "XRP",
-        "tech": "BTC,ETH",
-        "whale_movement": "BTC,ETH,SOL",
-    }
-    
-    CATEGORY_KEYWORDS = {
-        "btc": ["bitcoin", "btc", "satoshi", "lightning"],
-        "eth": ["ethereum", "eth", "vitalik", "eip", "gas"],
-        "sol": ["solana", "sol", "phantom", "raydium"],
-        "base": ["base", "coinbase", "cbeth"],
-        "defi": ["defi", "dex", "amm", "yield", "lending", "borrowing"],
-        "ai_agents": ["ai", "agent", "bot", "llm", "autonomous", "virtual"],
-        "aptos": ["aptos", "apt", "move"],
-        "rwa": ["rwa", "real world asset", "tokenization", "securities"],
-        "liquidity": ["liquidity", "volume", "tvl", "pool", "swap", "trading"],
-        "macro_events": ["regulation", "sec", "fed", "etf", "government", "policy"],
-        "proof_of_work": ["mining", "hashrate", "pow", "miner", "asic", "difficulty"],
-        "memecoins": ["meme", "doge", "shib", "pepe", "bonk", "wif"],
-        "stablecoins": ["usdt", "usdc", "dai", "stable", "tether"],
-        "nfts": ["nft", "opensea", "blur", "ordinals"],
-        "gaming": ["gaming", "play to earn", "p2e", "metaverse"],
-        "launchpad": ["launch", "ido", "ico", "token sale"],
-        "virtuals": ["virtuals", "virtual protocol", "game"],
-        "trends": ["trending", "viral", "rally", "pump"],
-        "ondo": ["ondo", "ondo finance", "tokenized"],
-        "perp_dexs": ["perpetual", "perp", "futures", "leverage"],
-        "crypto": ["crypto", "cryptocurrency", "blockchain"],
-        "dats": ["data", "decentralized", "storage"],
-        "hyperliquid": ["hyperliquid", "hype"],
-        "machine_learning": ["machine learning", "ml", "neural", "training"],
-        "ripple": ["ripple", "xrp"],
-        "tech": ["technology", "innovation", "protocol"],
-        "whale_movement": ["whale", "large transfer", "big move"],
-        "other": []
-    }
+    """Controller for handling category-based news endpoints""" 
     
     @staticmethod
     def _normalize_category(category: str) -> str:
@@ -101,9 +44,9 @@ class NewsController:
         # Normalize category first
         category = NewsController._normalize_category(category)
         
-        # Check if we have predefined tickers
-        if category in NewsController.CATEGORY_TICKERS:
-            tickers = NewsController.CATEGORY_TICKERS[category]
+        # Check if we have predefined tickers - FIX: Use settings.CATEGORY_TICKERS
+        if category in settings.CATEGORY_TICKERS:
+            tickers = settings.CATEGORY_TICKERS[category]
             logger.info(f"✓ Using predefined tickers for {category}: {tickers}")
             return tickers
         
@@ -113,8 +56,8 @@ class NewsController:
             logger.info(f"✓ Using cached AI tickers for {category}: {cached_tickers}")
             return cached_tickers
         
-        # Generate with AI
-        keywords = NewsController.CATEGORY_KEYWORDS.get(category, [])
+        # Generate with AI - FIX: Use settings.CATEGORY_KEYWORDS
+        keywords = settings.CATEGORY_KEYWORDS.get(category, [])
         tickers = await TickerGeneratorAgent.generate_tickers(category, keywords)
         logger.info(f"✓ Generated tickers for {category}: {tickers}")
         return tickers
@@ -122,7 +65,8 @@ class NewsController:
     @staticmethod
     async def get_news_by_category(
         category: str,
-        clean_content: bool = True
+        clean_content: bool = True,
+        limit: Optional[int] = None  # CHANGE: Optional limit
     ) -> Dict[str, Any]:
         """
         Fetch and transform news and tweets for a specific category
@@ -130,22 +74,21 @@ class NewsController:
         Args:
             category: Category name (will be normalized to VALID_CATEGORIES)
             clean_content: Whether to clean content with AI (default: True)
+            limit: Maximum items per source (news/tweets). None = all items (default: None)
         """
         # Normalize category
         category = NewsController._normalize_category(category)
         
+        # CHANGE: Include limit in cache key
         cache_key = f"news:{category}:{'clean' if clean_content else 'raw'}"
+        if limit:
+            cache_key += f":limit{limit}"
         
         # Check cache
         cached = redis_client.get(cache_key)
         if cached:
             logger.info(f"✓ Returning cached data for category: {category}")
             return cached
-        
-        # Check Database (Neon/Postgres)
-        from app.database.session import get_session
-        from sqlalchemy import select
-        from app.models.news import CategoryFeed
         
         async with get_session() as db:
             result = await db.execute(
@@ -174,6 +117,11 @@ class NewsController:
                         "twitter": existing_feed.twitter_items
                     }
                     
+                    # CHANGE: Apply limit if specified
+                    if limit:
+                        data["cryptonews"] = data["cryptonews"][:limit]
+                        data["twitter"] = data["twitter"][:limit]
+                    
                     # Hydrate Redis
                     redis_client.set(cache_key, data)
                     
@@ -183,8 +131,8 @@ class NewsController:
             else:
                 logger.info(f"∅ No DB data found for {category}, fetching fresh...")
         
-        # Get keywords and tickers
-        keywords = NewsController.CATEGORY_KEYWORDS.get(category, [])
+        # Get keywords and tickers - FIX: Use settings.CATEGORY_KEYWORDS
+        keywords = settings.CATEGORY_KEYWORDS.get(category, [])
         tickers = await NewsController.get_tickers_for_category(category)
         
         logger.info(f"🔍 Fetching {category} news with tickers: {tickers}, keywords: {keywords}")
@@ -193,14 +141,17 @@ class NewsController:
         news = []
         tweets = []
         
+        # CHANGE: Use limit or default to 50
+        fetch_limit = limit if limit else 50
+        
         if category == "trends":
             logger.info("Fetching trending news...")
-            news = await crypto_news_service.fetch_trending_news(limit=50)
+            news = await cryptopanic_service.fetch_news(kind="all", limit=fetch_limit)
             tweets = await game_x_service.fetch_latest_tweets(max_results=50)
         else:
-            # Use ticker-based fetching for CryptoNews
+            # Use ticker-based fetching for CryptoPanic
             logger.info(f"Fetching news for tickers: {tickers}")
-            news = await crypto_news_service.fetch_ticker_news(tickers, limit=50)
+            news = await cryptopanic_service.fetch_ticker_news(tickers, limit=fetch_limit)
             
             # For tweets, ALWAYS fetch from whitelisted accounts and filter by keywords
             logger.info(f"Fetching tweets from whitelisted accounts with keyword filter: {keywords}")
@@ -239,6 +190,11 @@ class NewsController:
             logger.warning(f"No tweets passed filter, using all {len(tweets)} items")
             filtered_tweets = tweets
         
+        # CHANGE: Apply limit before transformation
+        if limit:
+            filtered_news = filtered_news[:limit]
+            filtered_tweets = filtered_tweets[:limit]
+        
         # Transform items (async)
         result = await SignalTransformerAgent.transform_items(
             filtered_news,
@@ -250,8 +206,9 @@ class NewsController:
         # Cache result
         redis_client.set(cache_key, result)
         
-        # Save to database in background
-        save_category_data.send(category, result)
+        # Save to database in background (only if full fetch, not preview)
+        if not limit:
+            save_category_data.send(category, result)
         
         logger.info(
             f"✅ Successfully fetched {category}: {result['metadata']['total_news']} news, "
@@ -277,7 +234,7 @@ class NewsController:
                 "name": cat,
                 "aliases": aliases,
                 "description": NewsController._get_category_description(cat),
-                "tickers": NewsController.CATEGORY_TICKERS.get(cat, "Dynamic")
+                "tickers": settings.CATEGORY_TICKERS.get(cat, "Dynamic")  # FIX: Use settings
             })
         
         return {

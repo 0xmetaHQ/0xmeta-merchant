@@ -148,7 +148,7 @@ class SignalTransformerAgent:
     async def transform_cryptonews_item(
         cls,
         item: Dict[str, Any],
-        category: str,
+        category: str, 
         index: int,
         clean_content: bool = True
     ) -> Optional[Dict[str, Any]]:
@@ -175,6 +175,11 @@ class SignalTransformerAgent:
         # Get original title and text
         original_title = item.get("title", "Crypto News Update")
         original_text = item.get("text", "")
+        
+        # CHANGE: Handle empty text (common with CryptoPanic)
+        if not original_text or len(original_text) < 20:
+            # Use title as text if no description available
+            original_text = f"{original_title}. Read full article at source."
         
         # Clean content if enabled
         if clean_content:
@@ -240,15 +245,19 @@ class SignalTransformerAgent:
         if item.get("topics"):
             feed_categories.extend(item.get("topics", []))
         
-        # Use news_url field correctly
-        news_url = item.get("news_url", "")
+        # CHANGE: Use news_url field correctly
+        news_url = item.get("news_url") or item.get("url", "")
+        
+        # CHANGE: Get author/source
+        author = item.get("source_name") or item.get("domain", "Unknown")
         
         # Build signal
         return {
             "oxmeta_id": oxmeta_id,
             "category": category,
             "source": "cryptonews",
-            "sources": [news_url],
+            "sources": [news_url] if news_url else [],
+            "url": news_url,  # ADD: Direct URL field
             "title": title,
             "text": text,
             "sentiment": sentiment,
@@ -257,8 +266,8 @@ class SignalTransformerAgent:
             "timestamp": normalized_date.timestamp(),
             "normalized_date": normalized_date.isoformat(),
             "tokens": tokens,
-            "author": item.get("source_name", "Unknown"),
-            "image_url": item.get("image_url"),
+            "author": author,
+            "image_url": item.get("image_url", ""),
             "type": item.get("type", "Article"),
             "original_sentiment": item.get("sentiment"),
             "tickers": item.get("tickers", [])
