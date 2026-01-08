@@ -176,7 +176,7 @@ class SignalTransformerAgent:
         original_title = item.get("title", "Crypto News Update")
         original_text = item.get("text", "")
         
-        # CHANGE: Handle empty text (common with CryptoPanic)
+        # CHANGE: Handle empty text (common with RSS)
         if not original_text or len(original_text) < 20:
             # Use title as text if no description available
             original_text = f"{original_title}. Read full article at source."

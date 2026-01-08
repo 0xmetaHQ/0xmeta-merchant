@@ -1,7 +1,7 @@
 from loguru import logger
 from app.database.session import init_db
 from app.cache.redis_client import redis_client
-from app.services.cryptopanic import cryptopanic_service
+from app.services.rss import rss_news_service
 from app.services.game_x import game_x_service
 from app.workers.cleanup import cleanup_worker
 import sys
@@ -21,10 +21,9 @@ async def startup_checks():
     
     all_checks_passed = True
     
-    # # 1. Database Connection
+    # 1. Database Connection
     logger.info("\n[1/6] Checking Database Connection...")
     db_status = await init_db()
-
     if not db_status:
         all_checks_passed = False
     
@@ -34,13 +33,9 @@ async def startup_checks():
     if not redis_status:
         all_checks_passed = False
     
-    # 3. CryptoPanic News API
-    logger.info("\n[3/6] Checking CryptoPanic News API...")
-    cryptopanic_status = await cryptopanic_service.initialize()
-    if not cryptopanic_status:
-        logger.warning("⚠️  CryptoPanic News API unavailable - news endpoints will return limited data")
-        # Don't fail startup - we can still use GAME X for tweets
-
+    # 3. RSS News Service
+    logger.info("\n[3/6] Checking RSS News Service...")
+    await rss_news_service.initialize()  # ✅ Now this works
     
     # 4. GAME X API
     logger.info("\n[4/6] Checking GAME X API...")
@@ -48,16 +43,8 @@ async def startup_checks():
     if not gamex_status:
         all_checks_passed = False
     
-    # # 5. Payment Service
-    # logger.info("\n[5/6] Initializing Payment Service...")
-    # try:
-    #     await payment_service.initialize()
-    # except Exception as e:
-    #     logger.error(f"✗ Payment service initialization failed: {str(e)}")
-    #     all_checks_passed = False
-    
-    # 6. Cleanup Worker
-    logger.info("\n[6/6] Starting Cleanup Worker...")
+    # 5. Cleanup Worker
+    logger.info("\n[5/6] Starting Cleanup Worker...")
     try:
         cleanup_worker.start()
     except Exception as e:
@@ -82,8 +69,8 @@ async def shutdown_handlers():
     logger.info("\n🛑 Shutting down application...")
     
     try:
-        await cryptopanic_service.close()
-        logger.info("✓ CryptoPanic News service closed")
+        await rss_news_service.close() 
+        logger.info("✓ RSS service closed")
     except:
         pass
     
@@ -92,12 +79,6 @@ async def shutdown_handlers():
         logger.info("✓ GAME X service closed")
     except:
         pass
-    
-    # try:
-    #     await payment_service.close()
-    #     logger.info("✓ Payment service closed")
-    # except:
-    #     pass
     
     try:
         cleanup_worker.stop()

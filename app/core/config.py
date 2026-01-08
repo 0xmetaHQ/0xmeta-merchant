@@ -9,10 +9,6 @@ class Settings(BaseSettings):
     BASE_URL: str
     FACILITATOR_URL: str
     APP_NAME: str
-    
-    # CryptoPanic API
-    CRYPTOPANIC_URL: str = "https://cryptopanic.com/api/v2"
-    CRYPTOPANIC_AUTH_TOKEN: str
 
     # Game X
     GAME_API_KEY: str

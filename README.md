@@ -1,6 +1,6 @@
 # 0xMeta Crypto News Aggregator
 
-A production-grade crypto news aggregation API that combines CryptoPanic API and X (Twitter) feeds, categorizes content using GAME X AI agents, and monetizes endpoints using X402 payment protocol with 0xmeta facilitator.
+A production-grade crypto news aggregation API that combines RSS feeds + Twitter(X), categorizes content using GAME X AI agents, and monetizes endpoints using X402 payment protocol with 0xmeta facilitator.
 
 ## 🏗️ Architecture Overview
 
@@ -18,7 +18,7 @@ A production-grade crypto news aggregation API that combines CryptoPanic API and
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
 │ Controllers  │   │   Services   │   │    Agents    │
 │              │   │              │   │              │
-│ • News    │   │ • CryptoPanic │   │ • Categorizer│
+│ • News    │   │ • RSS │   │ • Categorizer│
 │ • Business   │   │ • GAME X     │   │ • Date Norm  │
 │   Logic      │   │ • Payment    │   │ • Data Merger│
 └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
@@ -77,10 +77,8 @@ A production-grade crypto news aggregation API that combines CryptoPanic API and
 │   │   └── news.py       # News data routes
 │   │
 │   ├── services/            # External integrations
-│   │   ├── cryptopanic.py    # CryptoPanic API client
-│   │   ├── game_x.py        # GAME X SDK wrapper
-│   │   └── payment/
-│   │       └── index.py     # Payment service
+│   │   ├── rss.py    # RSS (Really Simple Syndication) API client
+│   │   └── game_x.py        # GAME X SDK wrapper
 │   │
 │   ├── workers/             # Scheduled jobs
 │   │   └── cleanup.py       # 24hr data cleanup
@@ -128,8 +126,6 @@ BASE_URL=http://localhost:8080
 FACILITATOR_URL=https://facilitator.0xmeta.ai
 
 # External APIs
-CRYPTOPANIC_URL=https://cryptopanic.com/api/developer/v2
-CRYPTOPANIC_AUTH_TOKEN=your_cryptopanic_auth_token
 GAME_API_KEY=your_game_api_key
 GAME_ACCESS_TOKEN=your_game_access_token
 
@@ -458,7 +454,6 @@ SHOW_SQL_ALCHEMY_QUERIES=0
 
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
 - [GAME X SDK Docs](https://docs.game.virtuals.io)
-- [CryptoPanic API](https://cryptopanic.com/api/developer/v2)
 - [X402 Protocol Spec](https://docs.0xmeta.ai)
 - [EIP-3009 Standard](https://eips.ethereum.org/EIPS/eip-3009)
 

@@ -41,7 +41,7 @@ class ContentCleanerAgent:
                         Argument(
                             name="source",
                             type="string",
-                            description="Source type: 'cryptopanic' or 'twitter'"
+                            description="Source type: 'rss' or 'twitter'"
                         ), 
                         Argument(
                             name="category",
@@ -149,7 +149,7 @@ When asked to generate a title, respond ONLY with the title text, nothing else. 
         
         Args:
             text: Content text to generate title from
-            source: 'cryptopanic' or 'twitter'
+            source: 'rss' or 'twitter'
             category: Content category
             
         Returns:
@@ -424,7 +424,7 @@ When asked to generate a title, respond ONLY with the title text, nothing else. 
         
         Args:
             text: Content text
-            source: 'cryptopanic' or 'twitter'
+            source: 'rss' or 'twitter'
             category: Content category
             
         Returns:

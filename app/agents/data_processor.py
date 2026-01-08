@@ -1,6 +1,6 @@
 """
 Data Processor Agent - Processes and categorizes data from separate sources
-DOES NOT MERGE - Keeps CryptoPanic and X (Twitter) as separate sources
+DOES NOT MERGE - Keeps RSS and X (Twitter) as separate sources
 """
 
 from typing import Dict, Any, List, Tuple
@@ -26,17 +26,17 @@ class DataProcessorAgent:
         
         Args:
             category: Target category name
-            news_items: List of news articles from CryptoPanic API
+            news_items: List of news articles from RSS API
             tweets: List of tweets from GAME X API
             
         Returns:
             {
-                "cryptopanic": [...],  # Filtered news items
+                "rss": [...],  # Filtered news items
                 "twitter": [...],      # Filtered tweets
                 "metadata": {...}
             }
         """
-        # Process CryptoPanic items
+        # Process RSS items
         processed_news = []
         for item in news_items:
             # Normalize date
@@ -50,7 +50,7 @@ class DataProcessorAgent:
             # Filter by category
             if item_category == category or category == "trends":
                 processed_item = {
-                    "source": "cryptopanic", 
+                    "source": "rss", 
                     "news_url": item.get("news_url", ""),
                     "image_url": item.get("image_url", ""),
                     "title": item.get("title", ""),
@@ -109,7 +109,7 @@ class DataProcessorAgent:
         )
         
         return {
-            "cryptopanic": processed_news,
+            "rss": processed_news,
             "twitter": processed_tweets,
             "metadata": {
                 "category": category,
@@ -133,7 +133,7 @@ class DataProcessorAgent:
         
         Returns:
             {
-                "cryptopanic": [...],
+                "rss": [...],
                 "twitter": [...],
                 "metadata": {...}
             }
@@ -146,7 +146,7 @@ class DataProcessorAgent:
             )
             
             processed_item = {
-                "source": "cryptopanic",
+                "source": "rss",
                 "news_url": item.get("news_url", ""),
                 "image_url": item.get("image_url", ""),
                 "title": item.get("title", ""),
@@ -194,7 +194,7 @@ class DataProcessorAgent:
         processed_tweets.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
         
         return {
-            "cryptopanic": processed_news,
+            "rss": processed_news,
             "twitter": processed_tweets,
             "metadata": {
                 "total_news": len(processed_news),
