@@ -103,7 +103,6 @@ class X402PaymentVerifier:
 
         # Decode payment payload
         payment_payload_obj = None
-        tx_hash = None
 
         if x_payment:
             try:
@@ -114,9 +113,6 @@ class X402PaymentVerifier:
                     f"Decoded payment: network={payment_payload_obj.get('network')}, "
                     f"scheme={payment_payload_obj.get('scheme')}"
                 )
-                
-                # Extract transaction hash from nonce (EIP-3009)
-                tx_hash = payment_payload_obj["payload"]["authorization"]["nonce"]
                 
             except Exception as e:
                 logger.error(f"Failed to decode X-Payment: {e}")
@@ -129,61 +125,28 @@ class X402PaymentVerifier:
                     }
                 )
 
-        # Fallback to X-Payment-Hash header
-        if not tx_hash and x_payment_hash:
-            if ":" in x_payment_hash:
-                _, tx_hash = x_payment_hash.split(":", 1)
-            else:
-                tx_hash = x_payment_hash
-
-        if not tx_hash:
+        if not payment_payload_obj:
             raise HTTPException(
                 status_code=402,
                 detail={
                     "x402Version": 1,
-                    "error": "Transaction hash not found in payment headers",
+                    "error": "Payment payload not found",
                     "accepts": [self.payment_requirements.model_dump(mode='json')]
                 }
             )
 
-        # Normalize transaction hash
-        tx_hash = tx_hash.strip()
-        if not tx_hash.startswith("0x"):
-            tx_hash = "0x" + tx_hash
-
-        logger.info(f"Processing payment with tx_hash: {tx_hash}")
-
-        # Build verification metadata
-        metadata = {
-            "source": "0xmeta_cryptonews_api",
-            "resource": self.payment_requirements.resource
-        }
-
-        # Add full payment payload (CRITICAL for EIP-3009)
-        if payment_payload_obj:
-            metadata["paymentPayload"] = payment_payload_obj
-            
-            # Extract payer address
-            try:
-                payer = payment_payload_obj["payload"]["authorization"]["from"]
-                metadata["payer"] = payer
-                logger.info(f"Payer address: {payer}")
-            except Exception as e:
-                logger.warning(f"Could not extract payer: {e}")
-
-        # Step 1: Verify payment with facilitator
-        logger.info("🔍 Calling facilitator /v1/verify")
+        # ✅ STEP 1: Verify payment with facilitator (x402 format)
+        logger.info("🔍 Calling facilitator /v1/verify (x402 standard)")
         
         verify_result = await facilitator_client.verify_payment(
-            transaction_hash=tx_hash.lower(),
+            payment_payload=payment_payload_obj,
+            pay_to=self.payment_requirements.payTo,
+            amount=self.payment_requirements.maxAmountRequired,
+            token=self.payment_requirements.asset,
             chain=self.network,
-            seller_address=self.payment_requirements.payTo.lower(),
-            expected_amount=self.payment_requirements.maxAmountRequired,
-            expected_token=self.payment_requirements.asset.lower(),
-            metadata=metadata
         )
 
-        if not verify_result.get("success"):
+        if not verify_result.get("success") or not verify_result.get("isValid"):
             error = verify_result.get("error", "verification failed")
             logger.error(f"❌ Facilitator verify failed: {error}")
             
@@ -198,28 +161,23 @@ class X402PaymentVerifier:
 
         logger.info("✅ Payment verified successfully")
 
-        # Extract verification ID
-        verification_data = verify_result["data"]
-        verification_id = (
-            verification_data.get("verification_id") or
-            verification_data.get("id") or
-            verification_data.get("verificationId")
-        )
-
+        # Extract verification ID from x402 response
+        verification_id = verify_result.get("verification_id")
+        
         if not verification_id:
-            logger.warning("⚠️  No verification_id from facilitator, skipping settlement")
-            return True, self.payment_requirements
+            logger.warning("⚠️  No verification_id from facilitator")
 
-        # Step 2: Settle payment with facilitator
-        logger.info(f"💰 Calling facilitator /v1/settle with verification_id: {verification_id}")
+        # ✅ STEP 2: Settle payment with facilitator (x402 format)
+        logger.info(f"💰 Calling facilitator /v1/settle (x402 standard)")
         
         settle_result = await facilitator_client.settle_payment(
-            verification_id=verification_id,
-            destination_address=self.payment_requirements.payTo.lower(),
-            metadata={"source": "0xmeta_cryptonews_api"}
+            payment_payload=payment_payload_obj,
+            pay_to=self.payment_requirements.payTo,
+            amount=self.payment_requirements.maxAmountRequired,
+            chain=self.network,
         )
 
-        if not settle_result.get("success"):
+        if not settle_result.get("success") or not settle_result.get("settlement_success"):
             error = settle_result.get("error", "settlement failed")
             logger.error(f"❌ Facilitator settle failed: {error}")
             
@@ -233,6 +191,6 @@ class X402PaymentVerifier:
             )
 
         logger.info("✅ Payment successfully verified and settled via facilitator")
-        logger.info("💵 Merchant will receive their share via atomic split")
+        logger.info(f"💵 Transaction hash: {settle_result.get('transaction_hash')}")
         
         return True, self.payment_requirements

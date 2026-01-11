@@ -102,20 +102,44 @@ A production-grade crypto news aggregation API that combines RSS feeds + Twitter
 
 ### Installation
 
+### Prerequisites
+
+- Python 3.14+
+- PostgreSQL 13+
+- Redis 6+
+
+### Setup
+
+1. **Clone the repository**:
+
 ```bash
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone <repository-url>
+cd 0xmeta-merchant
+```
 
-# Clone repository
-git clone <repo-url>
-cd 0xmeta-crypto-aggregator
+2. **Install dependencies**:
 
-# Install dependencies
-uv sync
+```bash
+uv sync.
+```
 
-# Setup environment
+3. **Configure environment variables**:
+
+```bash
 cp .env.example .env
-# Edit .env with your API keys and configuration
+# Edit .env with your configuration
+```
+
+4. **Run database migrations**:
+
+```bash
+alembic upgrade head
+```
+
+5. **Start the server**:
+
+```bash
+uv run -m app.main
 ```
 
 ### Environment Variables
@@ -156,9 +180,6 @@ psql $DATABASE_URL -f app/database/migrations/001_initial_schema.sql
 
 # Start Dramatiq worker (in separate terminal)
 uv run dramatiq app.queue.tasks -p 4 -t 4
-
-# Start API server
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
 ### Docker Deployment
