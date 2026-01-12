@@ -9,6 +9,7 @@ from typing import Tuple
 from app.controllers.news_controller import NewsController
 from app.services.x402 import X402PaymentVerifier, PaymentRequirements
 from app.core.config import settings
+from app.core.limiter import limiter
 
 import logging
 
@@ -39,11 +40,6 @@ def create_payment_verifier(category: str) -> X402PaymentVerifier:
 async def list_categories():
     """
     List all available news categories with descriptions and pricing.
-    
-    **Returns:** 
-    - List of categories with aliases, descriptions, and tickers
-    - Pricing information (amount, currency, network)
-    - Available features
     """
     return NewsController.list_available_categories(
         price=str(settings.PRICE_PER_REQUEST),
@@ -52,19 +48,13 @@ async def list_categories():
 
 
 @router.get("/preview/{category}")
+@limiter.limit("60/minute")
 async def get_news_preview(
+    request: Request,
     category: str = Path(..., description="Category name for preview (e.g., btc, eth, sol)")
 ):
     """
     Get preview of news for a SPECIFIC category (3 items, no payment required).
-    
-    **Path Parameters:**
-    - category: Category name (e.g., btc, base, ai_agents)
-    
-    **Returns:**
-    - Preview data with 3 news items
-    - No payment verification required
-    - Pricing information for full access
     """
     # Normalize and validate category
     normalized_category = normalize_category(category)
@@ -80,13 +70,14 @@ async def get_news_preview(
             }
         )
     
-    logger.info(f"📋 Fetching preview for category: {normalized_category}")
+    logger.info(f"Fetching preview for category: {normalized_category}")
     
     try:
-        # Fetch only 3 items for preview
+        # Fetch FULL data (50 items) so it gets cached and saved to DB
+        # The controller handles caching/DB logic based on this call
         data = await NewsController.get_news_by_category(
             normalized_category, 
-            limit=3
+            limit=50
         )
         
         preview_items = data.get("cryptonews", [])[:3]
@@ -118,6 +109,7 @@ async def get_news_preview(
 
 
 @router.get("/{category}")
+@limiter.limit("60/minute")
 async def get_news_by_category(
     request: Request,
     category: str = Path(..., description="Category name (e.g., btc, base, ai_agents)")
